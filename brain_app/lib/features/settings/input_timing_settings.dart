@@ -4,6 +4,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import '../../core/storage/settings_store.dart';
 
 class InputTimingSettings extends StatefulWidget {
   const InputTimingSettings({super.key});
@@ -19,6 +20,23 @@ class _InputTimingSettingsState extends State<InputTimingSettings> {
   double _debounce = 50;
 
   @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final s = await SettingsStore.getShortMax();
+      final d = await SettingsStore.getDoubleWindow();
+      final v = await SettingsStore.getVeryLong();
+      final b = await SettingsStore.getDebounce();
+      if (!mounted) return;
+      setState(() { _shortMax = s.toDouble(); _doubleWindow = d.toDouble(); _veryLong = v.toDouble(); _debounce = b.toDouble(); });
+    } catch (_) {}
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       children: [
@@ -30,7 +48,7 @@ class _InputTimingSettingsState extends State<InputTimingSettings> {
             max: 800,
             divisions: 14,
             label: '${_shortMax.round()}ms',
-            onChanged: (v) => setState(() => _shortMax = v),
+            onChanged: (v) async { setState(() => _shortMax = v); await SettingsStore.setShortMax(v.round()); },
           ),
         ),
         ListTile(
@@ -41,7 +59,7 @@ class _InputTimingSettingsState extends State<InputTimingSettings> {
             max: 600,
             divisions: 9,
             label: '${_doubleWindow.round()}ms',
-            onChanged: (v) => setState(() => _doubleWindow = v),
+            onChanged: (v) async { setState(() => _doubleWindow = v); await SettingsStore.setDoubleWindow(v.round()); },
           ),
         ),
         ListTile(
@@ -52,7 +70,7 @@ class _InputTimingSettingsState extends State<InputTimingSettings> {
             max: 4000,
             divisions: 12,
             label: '${_veryLong.round()}ms',
-            onChanged: (v) => setState(() => _veryLong = v),
+            onChanged: (v) async { setState(() => _veryLong = v); await SettingsStore.setVeryLong(v.round()); },
           ),
         ),
         ListTile(
@@ -63,7 +81,7 @@ class _InputTimingSettingsState extends State<InputTimingSettings> {
             max: 200,
             divisions: 19,
             label: '${_debounce.round()}ms',
-            onChanged: (v) => setState(() => _debounce = v),
+            onChanged: (v) async { setState(() => _debounce = v); await SettingsStore.setDebounce(v.round()); },
           ),
         ),
         const Text(

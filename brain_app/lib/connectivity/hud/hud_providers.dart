@@ -102,6 +102,16 @@ final controllerStatusProvider = StreamProvider<ControllerStatus>((ref) async* {
 
 final inputStateMachineProvider = Provider<InputStateMachine>((ref) {
   final sm = InputStateMachine();
+  unawaited((() async {
+    try {
+      sm.setTiming(InputTimingConfig(
+        shortPressMax: Duration(milliseconds: await SettingsStore.getShortMax()),
+        doublePressWindow: Duration(milliseconds: await SettingsStore.getDoubleWindow()),
+        veryLongPress: Duration(milliseconds: await SettingsStore.getVeryLong()),
+        debounce: Duration(milliseconds: await SettingsStore.getDebounce()),
+      ));
+    } catch (_) {}
+  })());
   ref.onDispose(sm.dispose);
   return sm;
 });

@@ -58,6 +58,16 @@ class SettingsStore {
   static Future<String?> getHaToken() => _secure.read(key: 'ha_token');
   static Future<void> deleteHaToken() => _secure.delete(key: 'ha_token');
 
+  // Input timing (ms)
+  static Future<void> setShortMax(int v) => _prefs.setInt('shortMax', v);
+  static Future<int> getShortMax() async => (await _prefs.getInt('shortMax')) ?? 400;
+  static Future<void> setDoubleWindow(int v) => _prefs.setInt('doubleWindow', v);
+  static Future<int> getDoubleWindow() async => (await _prefs.getInt('doubleWindow')) ?? 350;
+  static Future<void> setVeryLong(int v) => _prefs.setInt('veryLong', v);
+  static Future<int> getVeryLong() async => (await _prefs.getInt('veryLong')) ?? 2000;
+  static Future<void> setDebounce(int v) => _prefs.setInt('debounce', v);
+  static Future<int> getDebounce() async => (await _prefs.getInt('debounce')) ?? 50;
+
   // Personalization
   static Future<void> setCharacterStyle(String v) => _prefs.setString('charStyle', v);
   static Future<String> getCharacterStyle() async => (await _prefs.getString('charStyle')) ?? 'default';
