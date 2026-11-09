@@ -34,8 +34,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Future<void> _check() async {
     try {
       final ok = await _channel.invokeMethod<bool>('check') ?? false;
+      if (!mounted) return;
       setState(() { _granted = ok; _checking = false; });
     } catch (_) {
+      if (!mounted) return;
       setState(() { _granted = false; _checking = false; });
     }
   }
