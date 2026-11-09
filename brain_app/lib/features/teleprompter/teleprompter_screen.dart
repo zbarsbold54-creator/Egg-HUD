@@ -34,6 +34,12 @@ class _TeleprompterScreenState extends ConsumerState<TeleprompterScreen> {
   }
 
   @override
+  void dispose() {
+    _scriptCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final state = ref.watch(teleprompterProvider);
     return Scaffold(

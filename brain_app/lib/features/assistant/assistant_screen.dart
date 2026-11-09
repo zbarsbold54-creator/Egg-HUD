@@ -53,6 +53,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
   Future<void> _toggleListen() async {
     if (_listening) {
       await _stt.stop();
+      if (!mounted) return;
       setState(() => _listening = false);
       return;
     }
@@ -105,7 +106,7 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
           });
         },
       );
-      if (myId != _requestId) return; // interrupted — discard late response
+      if (myId != _requestId || !mounted) return; // interrupted — discard late response
       setState(() {
         _messages.add(_Msg(response, false));
         _state = EdithState.success;
@@ -115,13 +116,13 @@ class _AssistantScreenState extends ConsumerState<AssistantScreen> {
         if (mounted && myId == _requestId) setState(() => _state = EdithState.idle);
       });
     } catch (e) {
-      if (myId != _requestId) return;
+      if (myId != _requestId || !mounted) return;
       setState(() {
         _messages.add(_Msg('Error: $e', false));
         _state = EdithState.error;
       });
     } finally {
-      if (myId == _requestId) setState(() => _busy = false);
+      if (mounted && myId == _requestId) setState(() => _busy = false);
     }
   }
 

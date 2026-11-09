@@ -22,6 +22,15 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
   bool _listening = false;
 
   final List<String> _langs = ['en', 'mn', 'zh'];
+  final TextEditingController _origCtl = TextEditingController();
+  final TextEditingController _transCtl = TextEditingController();
+
+  @override
+  void dispose() {
+    _origCtl.dispose();
+    _transCtl.dispose();
+    super.dispose();
+  }
 
   Future<void> _listen() async {
     await _stt.initialize();
@@ -29,7 +38,7 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
     await _stt.listen(
       listenOptions: SpeechListenOptions(localeId: _fromLang == 'en' ? 'en-US' : _fromLang == 'mn' ? 'mn-MN' : 'zh-CN'),
       onResult: (r) {
-        setState(() => _original = r.recognizedWords);
+        setState(() { _original = r.recognizedWords; _origCtl.text = _original; });
         if (r.finalResult) {
           _translate();
         }
@@ -43,6 +52,7 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
     // Do not fake translation.
     setState(() {
       _translated = '[Translation engine not configured. Set up ML Kit or REST provider. Original: $_original]';
+      _transCtl.text = _translated;
     });
   }
 
@@ -71,14 +81,14 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
             ),
             const SizedBox(height: 16),
             TextField(
-              controller: TextEditingController(text: _original),
+              controller: _origCtl,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Original', border: OutlineInputBorder()),
               onChanged: (v) => setState(() => _original = v),
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: _translated),
+              controller: _transCtl,
               maxLines: 3,
               decoration: const InputDecoration(labelText: 'Translated', border: OutlineInputBorder()),
               readOnly: true,

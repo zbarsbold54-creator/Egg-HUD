@@ -57,6 +57,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   StreamSubscription<HudConnectionState>? _hudSub;
   final TextEditingController _ipCtl = TextEditingController();
   final TextEditingController _proxyCtl = TextEditingController();
+  final TextEditingController _haUrlCtl = TextEditingController();
+  final TextEditingController _haAgentCtl = TextEditingController();
+  final TextEditingController _haTokenCtl = TextEditingController();
 
   @override
   void initState() {
@@ -80,6 +83,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _hudSub?.cancel();
     _ipCtl.dispose();
     _proxyCtl.dispose();
+    _haUrlCtl.dispose();
+    _haAgentCtl.dispose();
+    _haTokenCtl.dispose();
     super.dispose();
   }
 
@@ -119,13 +125,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _keepAwake = await SettingsStore.getKeepAwake();
     _keepAliveInterval = await SettingsStore.getKeepAliveInterval();
     _haUrl = await SettingsStore.getHaUrl();
+    _haUrlCtl.text = _haUrl;
     _haAgentId = await SettingsStore.getHaAgentId();
+    _haAgentCtl.text = _haAgentId;
     _speechRate = await SettingsStore.getSpeechRate();
     _speechVolume = await SettingsStore.getSpeechVolume();
     _recLang = await SettingsStore.getRecognitionLanguage();
     _verbosity = await SettingsStore.getVerbosity();
     _pushToTalk = await SettingsStore.getPushToTalk();
     _haToken = (await SettingsStore.getHaToken()) ?? '';
+    _haTokenCtl.text = _haToken;
     _ipCtl.text = _hudIp;
     _proxyCtl.text = _proxyUrl;
     setState(() {});
@@ -391,7 +400,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const Divider(),
           const Text('EDITH / Hermes', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
           TextField(
-            controller: TextEditingController(text: _haUrl),
+            controller: _haUrlCtl,
             decoration: const InputDecoration(labelText: 'Home Assistant URL (e.g. http://192.168.1.30:8123)'),
             onChanged: (v) async {
               _haUrl = v;
@@ -399,7 +408,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           TextField(
-            controller: TextEditingController(text: _haAgentId),
+            controller: _haAgentCtl,
             decoration: const InputDecoration(labelText: 'Conversation Agent ID (optional)'),
             onChanged: (v) async {
               _haAgentId = v;
@@ -407,7 +416,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             },
           ),
           TextField(
-            controller: TextEditingController(text: _haToken),
+            controller: _haTokenCtl,
             decoration: const InputDecoration(labelText: 'HA Long-lived Token (secure storage)'),
             obscureText: true,
             onChanged: (v) async {

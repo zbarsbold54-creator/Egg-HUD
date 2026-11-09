@@ -54,6 +54,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       }
 
       final pos = await Geolocator.getCurrentPosition();
+      if (!mounted) return;
       setState(() => _status = 'Location: ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}');
 
       // Start live location updates (real updates, not single fix)
@@ -61,6 +62,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
       _posSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high, distanceFilter: 5),
       ).listen((p) {
+        if (!mounted) return;
         setState(() {
           _status = 'Location: ${p.latitude.toStringAsFixed(4)}, ${p.longitude.toStringAsFixed(4)} (live)';
         });
@@ -98,11 +100,13 @@ class _NavigationScreenState extends State<NavigationScreen> {
       if (_instructions.isNotEmpty) {
         _nextTurn = _instructions.first;
       }
+      if (!mounted) return;
       setState(() {
         _status = 'Route ready. ${_distance.round()}m, $_eta. ${_instructions.length} steps.';
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _status = 'Navigation unavailable: $e';
         _loading = false;
