@@ -380,6 +380,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               await SettingsStore.setKeepAwake(v);
               if (v) {
                 final ok = await HudForegroundService.start();
+                if (!mounted) return;
                 messenger.showSnackBar(
                   SnackBar(content: Text(ok ? 'Background service started. HUD will stay awake when screen is off.' : 'Background service not available on this platform (desktop/web).')),
                 );
