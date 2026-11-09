@@ -199,6 +199,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _haStatus = 'Testing...');
     final client = HomeAssistantClient(baseUrl: _haUrl, token: _haToken, agentId: _haAgentId);
     final result = await client.testConnection();
+    if (!mounted) return;
     setState(() => _haStatus = result.message);
   }
 
