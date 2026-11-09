@@ -4,20 +4,21 @@ Wearable smart-glasses HUD: a dumb remote display (HUD Egg) driven by a Flutter 
 
 - **HUD Egg** — ESP32-C3 SuperMini + SSD1309 128×64 SPI OLED. Joins WiFi, receives 1024-byte binary frames over WebSocket, renders them, sleeps when idle.
 - **Brain App (GLAS)** — Flutter app (Android/Windows/Web). Owns all state, renders to a 128×64 canvas, pushes frames to the Egg, handles mDNS discovery and auto-reconnect.
-- **Controller** — ESP32 DevKit + MPU6050 BLE HID mouse ("Jarvis Palm Mouse"). Optional wrist input.
+- **Controller** — ESP32 DevKit button via ESP-NOW to HUD Egg (no phone pairing). Optional wrist input.
 
 ## Wire protocol (frozen)
 
 - WebSocket: `ws://hud.local:81` (or IP). No auth, no handshake payload.
 - One binary message per frame, **exactly 1024 bytes**, no header.
 - 128×64, 1bpp, SSD130x page layout: `buffer[(y/8)*128 + x]`, bit `(y%8)` = pixel on (LSB = top row of page).
-- Any other length is dropped. The Egg never sends anything back.
+- Any other length is dropped. The Egg never sends anything back on port 81.
+- Controller input: separate WebSocket on port 82 (JSON button events from ESP-NOW controller).
 
 ## Layout
 
 ```
 firmware/HUD/                    ESP32-C3 sketch (Arduino, multi-file)
-firmware/Jarvis_Wrist_Controller/ ESP32 BLE mouse sketch
+firmware/Jarvis_Wrist_Controller/ ESP32 ESP-NOW button sketch
 brain_app/                       Flutter app (GLAS)
 tools/send_test_frames.py        PC test: sends checkerboard/half/white/black frames
 tools/hud_cors_proxy.py          Optional proxy for https web builds

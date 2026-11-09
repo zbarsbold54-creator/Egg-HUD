@@ -45,7 +45,7 @@ Identity: EDITH (display name). Hermes on ZimaOS is the AI backend (unchanged).
 - `POST_NOTIFICATIONS` — notification access (UI requests transparently)
 - `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_DATA_SYNC`, `WAKE_LOCK` — background WS (declared; native foreground service not yet implemented — see Blockers)
 
-Microphone: `speech_to_text` requests `RECORD_AUDIO` at runtime. Bluetooth audio: OS default output, earbuds via normal OS pairing. Notification access: permission declared, UI explains and requests. Background WS: reconnect with exponential backoff implemented; **foreground service not implemented** (requires native Kotlin). Lifecycle: `AppLifecycle` observer restores screen on resume, documents that uninterrupted background is not promised when OS prevents it.
+Microphone: `speech_to_text` requests `RECORD_AUDIO` at runtime. Bluetooth audio: OS default output, earbuds via normal OS pairing. Notification access: permission declared, UI explains and requests. Background WS: reconnect with exponential backoff implemented; foreground service implemented via flutter_foreground_task (Android only). Lifecycle: `AppLifecycle` observer restores screen on resume, documents that uninterrupted background is not promised when OS prevents it.
 
 ### Windows desktop build
 - Blocker: OS Developer Mode (Settings → System → For developers → Developer Mode ON). Required for plugin symlinks.
