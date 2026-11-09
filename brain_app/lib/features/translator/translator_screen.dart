@@ -34,10 +34,12 @@ class _TranslatorScreenState extends State<TranslatorScreen> {
 
   Future<void> _listen() async {
     await _stt.initialize();
+    if (!mounted) return;
     setState(() => _listening = true);
     await _stt.listen(
       listenOptions: SpeechListenOptions(localeId: _fromLang == 'en' ? 'en-US' : _fromLang == 'mn' ? 'mn-MN' : 'zh-CN'),
       onResult: (r) {
+        if (!mounted) return;
         setState(() { _original = r.recognizedWords; _origCtl.text = _original; });
         if (r.finalResult) {
           _translate();
