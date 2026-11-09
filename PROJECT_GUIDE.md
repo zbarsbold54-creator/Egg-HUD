@@ -349,10 +349,10 @@ flutter build apk --release # 52MB release, signed CN=GLAS (glas-release.jks, gi
 
 **APK checksums (SHA-256):**
 - GLAS-debug.apk: 68b47b167e1e0bcc38036a683f0d295bacc0168e871cfcf2f10abec154949ce5
-- GLAS-release.apk: 10346af7b7557e7cbe9bc5afe2c482ad735b5853fc73083caddf2140d40ac0c9
+- GLAS-release.apk: 149d54f20051f28e13a6c26aa3f2c688d4b4b210a2666dd5e44102fc91271172
 - GLAS-release-nocleartext.apk: 6647a1172aec3a52e51261e7aa5bf62bbc6c70f8cffced485dd9a6c1fd28be84
 
-**Keystore backup:** `brain_app/android/glas-release.jks` + `key.properties` (passwords glas123) are gitignored. Back them up offline (USB + password manager). Losing them means new keystore = new app identity (users must uninstall/reinstall).
+**Keystore backup:** `brain_app/android/glas-release.jks` + `key.properties` are gitignored. Back them up offline (USB + password manager). Losing them means new keystore = new app identity (users must uninstall/reinstall). Passwords are in key.properties only (never in docs).
 ```
 
 PC test (no app needed):
@@ -369,7 +369,8 @@ LAN APK download (no GitHub/LFS):
 ```bash
 # PC serves releases/GLAS-debug.apk on LAN
 python -m http.server 8080 --directory releases --bind 0.0.0.0
-# Phone (same WiFi): http://192.168.1.20:8080/GLAS-debug.apk
+# Phone (same WiFi): http://192.168.1.20:8080/GLAS-release.apk
+# Serve only on trusted LAN. Stop the server after installing (Ctrl+C).
 ```
 
 ---

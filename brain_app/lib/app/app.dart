@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../connectivity/hud/hud_providers.dart';
 import '../display/renderer/always_on_screen.dart';
+import '../core/services/foreground_service.dart';
 import '../core/theme/app_theme.dart';
 import 'lifecycle.dart';
 import 'router.dart';
@@ -30,6 +31,9 @@ class _EdithAppState extends ConsumerState<EdithApp> {
     final inputProvider = ref.read(hudInputProvider);
     _lifecycle = AppLifecycle(hud: hud, renderer: renderer)..attach();
     _alwaysOn = AlwaysOnScreen(renderer)..start();
+    // Eager FGS start while visible (connectedDevice always; mic/location if granted).
+    // Restart with larger set only when perm granted while visible (see Settings).
+    unawaited(HudForegroundService.start());
     unawaited(inputProvider.start());
     // Connect to the glasses on launch (saved IP, else discovery).
     unawaited(

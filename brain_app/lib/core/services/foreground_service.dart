@@ -10,6 +10,16 @@ library;
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+/// Compute FGS type set from granted permissions.
+/// connectedDevice always; microphone if RECORD_AUDIO granted;
+/// location if fine/coarse granted. Returns set of type names.
+Set<String> computeTypeSet({required bool micGranted, required bool locationGranted}) {
+  final types = <String>{'connectedDevice'};
+  if (micGranted) types.add('microphone');
+  if (locationGranted) types.add('location');
+  return types;
+}
+
 class HudForegroundService {
   static bool _initialized = false;
 

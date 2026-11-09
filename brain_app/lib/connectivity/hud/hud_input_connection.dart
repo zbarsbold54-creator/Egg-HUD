@@ -157,16 +157,18 @@ class HudInputConnection {
         return;
       }
       // Duplicate protection: ignore seq <= lastSeq, unless reboot.
-      // Interim rule: seq < lastSeq and seq <= 4 means controller reboot, reset.
-      // Large backward jump (>100) also means reset. Duplicates (== or -1) rejected.
+      // Reboot reset only when seq <= 4 and (lastSeq - seq) >= 3.
+      // Large backward jump (>100) also resets. Duplicates rejected.
+      // On any reset, clear held-button state (via status? no — seq reset implies
+      // controller rebooted, button state unknown; app max-hold cap covers it).
       if (type.startsWith('button')) {
         if (seq <= _lastSeq) {
-          if (seq <= 4 && seq < _lastSeq) {
-            _lastSeq = -1; // reboot (seq restarted low)
+          if (seq <= 4 && (_lastSeq - seq) >= 3) {
+            _lastSeq = -1; // reboot
           } else if (_lastSeq - seq > 100) {
-            _lastSeq = -1; // large jump (reboot/reset)
+            _lastSeq = -1; // large jump
           } else {
-            return; // duplicate
+            return; // duplicate (== or -1 at higher values, or small backward)
           }
         }
       }
