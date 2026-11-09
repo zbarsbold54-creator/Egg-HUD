@@ -215,7 +215,7 @@ final inputStateMachineProvider = Provider<InputStateMachine>((ref) { ... });
 ```
 
 - **One shared HudConnection** for the whole app (was: private instance in Settings that died with the screen).
-- **Foreground service:** `connectedDevice` type (not dataSync). Permissions: FOREGROUND_SERVICE + CONNECTED_DEVICE. RECORD_AUDIO/location requested first, service starts with granted types only, only while app visible. Android 15 timeout falls back to connectedDevice + notification.
+- **Foreground service:** `connectedDevice|microphone|location` types. Permissions: FOREGROUND_SERVICE + CONNECTED_DEVICE + MICROPHONE + LOCATION. Qualifying perm for connectedDevice: CHANGE_WIFI_MULTICAST_STATE / CHANGE_WIFI_STATE / CHANGE_NETWORK_STATE (all declared). Runtime computes type set from granted perms, starts only from visible UI, restarts with extra types when voice/nav starts. No autoRunOnBoot — on boot/restart posts "tap to resume voice/nav" notification.
 - **Auto-connect** on launch: saved IP first, else discovery once. Re-discovers if saved IP stale.
 - **Lifecycle:** AppLifecycle registered as WidgetsBindingObserver. On resume to ensureConnected() + forceFrame().
 
@@ -245,7 +245,7 @@ Order: DNS-SD PTR to SRV to A to hostname A (hud.local) to system resolver to la
 - HudInputProvider feeds InputStateMachine:
   - button_down to onButtonDown() (starts 2s exit timer)
   - button_up to onButtonUpWithDuration(duration) (preserves Morse timing)
-- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings. SEARCHING means no ESP-NOW peer yet (normal at boot). Seq resets on reconnect AND on status CONNECTED (controller reboot resets seq to 0; large backward jumps >100 accepted as reset). Firmware sends status CONNECTED only on new input WS client connect, NOT on controller re-announce.
+- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings. SEARCHING means no ESP-NOW peer yet (normal at boot). Seq resets on reconnect AND on status CONNECTED AND on interim rule (seq <=4 and seq < lastSeq means reboot). Duplicates (== or -1) rejected. Firmware sends status CONNECTED only on new input WS client connect, NOT on controller re-announce.
 
 ### 6.5 Input state machine (input_state_machine.dart)
 
@@ -346,6 +346,13 @@ flutter analyze
 flutter test          # 50 tests
 flutter build apk --debug   # 175MB debug
 flutter build apk --release # 52MB release, signed CN=GLAS (glas-release.jks, gitignored)
+
+**APK checksums (SHA-256):**
+- GLAS-debug.apk: 68b47b167e1e0bcc38036a683f0d295bacc0168e871cfcf2f10abec154949ce5
+- GLAS-release.apk: 10346af7b7557e7cbe9bc5afe2c482ad735b5853fc73083caddf2140d40ac0c9
+- GLAS-release-nocleartext.apk: 6647a1172aec3a52e51261e7aa5bf62bbc6c70f8cffced485dd9a6c1fd28be84
+
+**Keystore backup:** `brain_app/android/glas-release.jks` + `key.properties` (passwords glas123) are gitignored. Back them up offline (USB + password manager). Losing them means new keystore = new app identity (users must uninstall/reinstall).
 ```
 
 PC test (no app needed):

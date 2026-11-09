@@ -24,7 +24,9 @@ class AlwaysOnScreen {
     _lastInput = DateTime.now();
     if (_sleeping) {
       _sleeping = false;
+      renderer.setPaused(false);
       renderer.forceFrame(); // resume rendering
+      // Wake press is consumed (no action) — it only wakes the display.
     }
   }
 
@@ -44,7 +46,8 @@ class AlwaysOnScreen {
       if (!_sleeping) {
         _sleeping = true;
         renderer.canvas.clear();
-        renderer.forceFrame(); // one blank frame, then stop
+        renderer.forceFrame(); // one blank frame
+        renderer.setPaused(true); // then pause keep-alive + forceFrame
       }
       return; // stop sending frames
     }

@@ -156,14 +156,17 @@ class HudInputConnection {
         }
         return;
       }
-      // Duplicate protection: ignore seq <= lastSeq, unless large backward jump (reboot/reset)
+      // Duplicate protection: ignore seq <= lastSeq, unless reboot.
+      // Interim rule: seq < lastSeq and seq <= 4 means controller reboot, reset.
+      // Large backward jump (>100) also means reset. Duplicates (== or -1) rejected.
       if (type.startsWith('button')) {
         if (seq <= _lastSeq) {
-          // Large backward jump (e.g. 1000 -> 0) means controller rebooted; accept as reset.
-          if (_lastSeq - seq > 100) {
-            _lastSeq = -1;
+          if (seq <= 4 && seq < _lastSeq) {
+            _lastSeq = -1; // reboot (seq restarted low)
+          } else if (_lastSeq - seq > 100) {
+            _lastSeq = -1; // large jump (reboot/reset)
           } else {
-            return;
+            return; // duplicate
           }
         }
       }

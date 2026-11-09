@@ -4,6 +4,7 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE"/>
     <!-- mDNS discovery of the HUD: Android drops multicast unless a MulticastLock is held -->
     <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE"/>
 
@@ -25,6 +26,8 @@
     <!-- Background: foreground service for HUD WebSocket keep-alive -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
@@ -56,7 +59,7 @@
         <!-- Foreground service for HUD WebSocket keep-alive (screen-off) -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="connectedDevice"
+            android:foregroundServiceType="connectedDevice|microphone|location"
             android:exported="false" />
     </application>
     <queries>

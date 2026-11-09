@@ -23,6 +23,7 @@ class DisplayRenderer {
   Timer? _keepAliveTimer;
   Duration _keepAliveInterval = const Duration(seconds: 10);
   bool _keepAliveEnabled = false;
+  bool _paused = false; // true when AlwaysOn sleeping (tier 3)
 
   Framebuffer get canvas => _canvas;
   DisplayTransform get transform => _transform;
@@ -37,6 +38,8 @@ class DisplayRenderer {
   void setSink(FrameSink? sink) {
     _sink = sink;
   }
+
+  void setPaused(bool v) => _paused = v;
 
   void setKeepAlive({required bool enabled, Duration interval = const Duration(seconds: 10)}) {
     _keepAliveEnabled = enabled;
@@ -59,7 +62,7 @@ class DisplayRenderer {
   }
 
   void _flush({bool force = false}) {
-    if (_sink == null) return;
+    if (_sink == null || _paused) return;
     final transformed = _transform.apply(_canvas);
     final h = transformed.hash;
     if (!force && !_dirty && h == _lastHash) return;

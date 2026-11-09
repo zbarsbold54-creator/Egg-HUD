@@ -30,7 +30,7 @@ Controller sends ANNOUNCE on every channel during scan (not just after beacon). 
 
 ArduinoOTA with password auth. Update via WiFi without USB. Requires password storage (NVS) and signed images.
 
-## P8. HUD-stamped seq on port 82 (PROPOSED)
+## P8. HUD-stamped seq on port 82 (RECOMMENDED)
 
 Currently controller seq is forwarded as-is. Proposal: HUD stamps its own monotonic seq on port 82 messages (in addition to controller seq), so app can detect HUD-side drops vs controller-side drops.
 
