@@ -26,6 +26,8 @@ class _ToolsScreenState extends State<ToolsScreen> {
   @override
   void dispose() {
     _swTimer?.cancel();
+    _calcCtrl.dispose();
+    _noteCtrl.dispose();
     super.dispose();
   }
 

@@ -29,6 +29,7 @@ class _SoundScreenState extends State<SoundScreen> {
   Future<void> _loadDevices() async {
     final inputs = await AudioDeviceService.getInputDevices();
     final outputs = await AudioDeviceService.getOutputDevices();
+    if (!mounted) return;
     setState(() {
       _inputs = inputs;
       _outputs = outputs;
