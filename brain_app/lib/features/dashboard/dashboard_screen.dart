@@ -12,6 +12,7 @@ import '../../widgets/navigation_components/navigation_components.dart';
 import '../../app/router.dart';
 import '../../connectivity/hud/hud_input_connection.dart';
 import '../../connectivity/hud/hud_providers.dart';
+import '../../connectivity/hud/hud_connection.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -24,13 +25,31 @@ class DashboardScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          StatusBar(
-            clock: TimeOfDay.now().format(context),
-            phoneBattery: 0.85,
-            hudConnected: true,
-            wifiConnected: true,
-            bluetoothConnected: true,
-            assistantConnected: true,
+          ref.watch(hudStateProvider).when(
+            data: (s) => StatusBar(
+              clock: TimeOfDay.now().format(context),
+              phoneBattery: 0.85,
+              hudConnected: s == HudConnectionState.connected,
+              wifiConnected: s == HudConnectionState.connected || s == HudConnectionState.connecting,
+              bluetoothConnected: false,
+              assistantConnected: false,
+            ),
+            loading: () => StatusBar(
+              clock: TimeOfDay.now().format(context),
+              phoneBattery: 0.85,
+              hudConnected: false,
+              wifiConnected: false,
+              bluetoothConnected: false,
+              assistantConnected: false,
+            ),
+            error: (_, _) => StatusBar(
+              clock: TimeOfDay.now().format(context),
+              phoneBattery: 0.85,
+              hudConnected: false,
+              wifiConnected: false,
+              bluetoothConnected: false,
+              assistantConnected: false,
+            ),
           ),
           const SizedBox(height: 24),
           Center(child: EdithCharacter(state: edithState, size: 140)),
