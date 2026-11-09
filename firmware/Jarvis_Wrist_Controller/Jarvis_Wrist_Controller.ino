@@ -1,275 +1,188 @@
-/*
- * Jarvis Palm Mouse
- * =========================================================================
- * ESP32 DevKit + MPU6050 -> BLE air mouse. Tilt/twist your wrist to move
- * the cursor, click the button to left-click, long-press the button to
- * toggle cursor tracking on/off (handy for repositioning your hand
- * without dragging the cursor, the same way lifting a physical mouse off
- * the pad works).
- *
- * Unlike the earlier gesture-button design, cursor tracking runs
- * continuously (the button doesn't gate the sensor) -- that's inherent to
- * how an air mouse has to work, so this build draws more power than the
- * old hold-to-activate one. If you want to save battery, use the button's
- * long-press to pause tracking whenever you're not actively using it.
- *
- * Arduino IDE: this file must be named exactly the same as the folder it
- * lives in. The src/ subfolder is picked up automatically alongside it.
- * =========================================================================
- */
+// EDITH Controller — ESP32 DevKit, ESP-NOW button -> HUD Egg
+// Button on GPIO27 (active-low, internal pull-up). No BLE, no gyro.
+// Discovers HUD via ESP-NOW beacons, sends press/release with seq + duration.
 
-#include "src/Config.h"
-#include "src/MPU6050Sensor.h"
-#include "src/BLEController.h"
+#include <WiFi.h>
+#include <esp_now.h>
+#include <esp_wifi.h>
 
-// ---------------------------------------------------------------------
-// Global objects
-// ---------------------------------------------------------------------
-MPU6050Sensor  sensor;
-BLEController  ble;
+#define PIN_BUTTON 27
+#define BUTTON_DEBOUNCE_MS 25
+#define SERIAL_BAUD 115200
+#define PROTOCOL_VERSION 1
+#define CONTROLLER_ID 1
+#define BEACON_INTERVAL_MS 2000
+#define HEARTBEAT_INTERVAL_MS 5000
+#define PEER_TIMEOUT_MS 15000
+#define CHANNEL_DWELL_MS 1000
 
-// ---------------------------------------------------------------------
-// Cursor tracking state
-// ---------------------------------------------------------------------
-bool cursorEngaged = MOUSE_ENGAGED_AT_BOOT;
-unsigned long lastMoveSampleMs = 0;
+enum MsgType : uint8_t {
+  MSG_BEACON = 1,      // HUD -> broadcast
+  MSG_ANNOUNCE = 2,    // controller -> HUD
+  MSG_ACK = 3,         // HUD -> controller
+  MSG_BUTTON_DOWN = 4,
+  MSG_BUTTON_UP = 5,
+  MSG_HEARTBEAT = 6,
+  MSG_STATUS = 7
+};
 
-// Slowly-adapting estimate of "true zero" for each mapped channel, used to
-// correct gyro bias drift that creeps in after the one-time startup
-// calibration (see MOUSE_STILLNESS_DPS / MOUSE_BIAS_ADAPT_RATE in Config.h).
-float biasEstX = 0.0f;
-float biasEstY = 0.0f;
+#pragma pack(push, 1)
+struct EspNowPacket {
+  uint8_t version;
+  uint8_t type;
+  uint8_t controllerId;
+  uint8_t channel;
+  uint32_t seq;
+  uint32_t timestampMs;
+  uint32_t durationMs;
+  uint8_t buttonState; // 0 released, 1 pressed
+  uint8_t status;      // 0 disconnected, 1 searching, 2 connecting, 3 connected, 4 reconnecting, 5 error
+  uint8_t mac[6];
+};
+#pragma pack(pop)
 
-// ---------------------------------------------------------------------
-// Button debounce + click/long-press detection
-// ---------------------------------------------------------------------
-bool buttonRawLast = false;
-bool buttonStable = false;
-unsigned long buttonLastChangeMs = 0;
-bool prevButtonStable = false;
-unsigned long pressStartMs = 0;
+static uint8_t hudMac[6] = {0};
+static bool peerAdded = false;
+static uint32_t seqCounter = 0;
+static uint32_t lastBeaconMs = 0;
+static uint32_t lastHeartbeatMs = 0;
+static uint32_t lastPeerSeenMs = 0;
+static uint8_t currentChannel = 0;
+static bool connected = false;
 
-bool readButtonRawPressed() {
-#if BUTTON_ACTIVE_LOW
-    return digitalRead(PIN_BUTTON) == LOW;
-#else
-    return digitalRead(PIN_BUTTON) == HIGH;
-#endif
+static bool buttonRawLast = false;
+static bool buttonStable = false;
+static uint32_t buttonLastChangeMs = 0;
+static bool prevButtonStable = false;
+static uint32_t pressStartMs = 0;
+
+static bool readButtonRaw() { return digitalRead(PIN_BUTTON) == LOW; }
+static bool debouncedButton() {
+  bool raw = readButtonRaw();
+  if (raw != buttonRawLast) { buttonLastChangeMs = millis(); buttonRawLast = raw; }
+  if (millis() - buttonLastChangeMs > BUTTON_DEBOUNCE_MS) buttonStable = raw;
+  return buttonStable;
 }
 
-// Returns the debounced current pressed/released state. Call exactly once
-// per loop() iteration.
-bool debouncedButtonPressed() {
-    bool raw = readButtonRawPressed();
-    if (raw != buttonRawLast) {
-        buttonLastChangeMs = millis();
-        buttonRawLast = raw;
+static void sendPacket(uint8_t type, uint32_t durationMs = 0, uint8_t btn = 0, uint8_t status = 3) {
+  if (!peerAdded) return;
+  EspNowPacket p = {};
+  p.version = PROTOCOL_VERSION;
+  p.type = type;
+  p.controllerId = CONTROLLER_ID;
+  p.channel = currentChannel;
+  p.seq = seqCounter++;
+  p.timestampMs = millis();
+  p.durationMs = durationMs;
+  p.buttonState = btn;
+  p.status = status;
+  memcpy(p.mac, WiFi.macAddress().c_str(), 0); // placeholder, filled below
+  uint8_t mac[6];
+  WiFi.macAddress(mac);
+  memcpy(p.mac, mac, 6);
+  esp_now_send(hudMac, (uint8_t*)&p, sizeof(p));
+}
+
+static void onRecv(const esp_now_recv_info_t* info, const uint8_t* data, int len) {
+  const uint8_t* mac = info->src_addr;
+  Serial.print(F("[CTRL] recv len=")); Serial.print(len); Serial.print(F(" ch=")); Serial.println(WiFi.channel());
+  if (len != sizeof(EspNowPacket)) return;
+  EspNowPacket p;
+  memcpy(&p, data, sizeof(p));
+  if (p.version != PROTOCOL_VERSION) return;
+  if (p.type == MSG_BEACON) {
+    memcpy(hudMac, mac, 6);
+    currentChannel = p.channel;
+    lastBeaconMs = millis();
+    lastPeerSeenMs = millis();
+    if (!peerAdded) {
+      esp_now_peer_info_t info = {};
+      memcpy(info.peer_addr, hudMac, 6);
+      info.channel = currentChannel;
+      info.encrypt = false;
+      if (esp_now_add_peer(&info) == ESP_OK) {
+        peerAdded = true;
+        Serial.print(F("[CTRL] HUD found ch="));
+        Serial.print(currentChannel);
+        Serial.print(F(" mac="));
+        for (int i = 0; i < 6; i++) { Serial.printf("%02X", hudMac[i]); if (i < 5) Serial.print(":"); }
+        Serial.println();
+        sendPacket(MSG_ANNOUNCE);
+      }
     }
-    if ((millis() - buttonLastChangeMs) > BUTTON_DEBOUNCE_MS) {
-        buttonStable = raw;
+  } else if (p.type == MSG_ACK) {
+    lastPeerSeenMs = millis();
+    if (!connected) { connected = true; Serial.println(F("[CTRL] CONNECTED")); }
+  } else if (p.type == MSG_STATUS || p.type == MSG_HEARTBEAT) {
+    lastPeerSeenMs = millis();
+  }
+}
+
+static void scanChannels() {
+  // ponytail: fixed ch11, no scanning (HUD is on ch11)
+  return;
+  for (uint8_t ch = 11; ch <= 11; ch++) {
+    Serial.print(F("[CTRL] scan ch=")); Serial.println(ch);
+    esp_wifi_set_channel(ch, WIFI_SECOND_CHAN_NONE);
+    uint32_t start = millis();
+    while (millis() - start < CHANNEL_DWELL_MS) {
+      if (peerAdded) return;
+      delay(10);
     }
-    return buttonStable;
+  }
 }
 
-// ---------------------------------------------------------------------
-// Live diagnostic streaming (toggle with the "debug" Serial command)
-// ---------------------------------------------------------------------
-bool diagnosticMode = false;
-unsigned long lastDiagPrintMs = 0;
-
-// ---------------------------------------------------------------------
-// Serial console
-// ---------------------------------------------------------------------
-String serialLineBuffer;
-
-void printBanner() {
-    Serial.println();
-    Serial.println(F("========================================================"));
-    Serial.println(F(" Jarvis Palm Mouse - Serial Console"));
-    Serial.println(F("========================================================"));
-    Serial.println(F(" Commands:"));
-    Serial.println(F("   status               Show connection/calibration/tracking status"));
-    Serial.println(F("   engage               Turn cursor tracking ON"));
-    Serial.println(F("   disengage            Turn cursor tracking OFF (button long-press also toggles this)"));
-    Serial.println(F("   debug                Toggle live sensor diagnostic stream"));
-    Serial.println(F("   recalibrate          Redo gyro/accel calibration (keep still)"));
-    Serial.println(F("   rezero               Instantly flush accumulated drift (keep still)"));
-    Serial.println(F("   help                 Show this menu again"));
-    Serial.println(F("========================================================"));
-    Serial.println(F(" Tilt/twist your wrist to move the cursor. Click the button to"));
-    Serial.println(F(" left-click. Long-press the button to pause/resume tracking."));
-    Serial.println(F("========================================================"));
-}
-
-void handleStatusCommand() {
-    Serial.println(F("--- Status ---"));
-    Serial.printf("  BLE connected    : %s\n", ble.isConnected() ? "yes" : "no");
-    Serial.printf("  Sensor calibrated: %s\n", sensor.isCalibrated() ? "yes" : "no");
-    Serial.printf("  Cursor tracking  : %s\n", cursorEngaged ? "engaged" : "paused");
-    Serial.printf("  Button state     : %s\n", debouncedButtonPressed() ? "pressed" : "released");
-    Serial.printf("  Drift bias (dps) : X=%.2f Y=%.2f\n", biasEstX, biasEstY);
-
-    float gbx, gby, gbz, abx, aby;
-    sensor.getGyroBias(gbx, gby, gbz);
-    sensor.getAccelBias(abx, aby);
-    Serial.printf("  Gyro bias (dps)  : %.2f %.2f %.2f\n", gbx, gby, gbz);
-    Serial.printf("  Accel bias (g)   : %.2f %.2f\n", abx, aby);
-}
-
-void processSerialCommand(String line) {
-    line.trim();
-    if (line.length() == 0) return;
-    line.toLowerCase();
-
-    if (line == "status") {
-        handleStatusCommand();
-    } else if (line == "engage") {
-        cursorEngaged = true;
-        Serial.println(F("Cursor tracking ENGAGED."));
-    } else if (line == "disengage") {
-        cursorEngaged = false;
-        Serial.println(F("Cursor tracking PAUSED."));
-    } else if (line == "debug") {
-        diagnosticMode = !diagnosticMode;
-        Serial.printf("[DEBUG] Live stream %s.\n", diagnosticMode ? "ON" : "OFF");
-    } else if (line == "recalibrate") {
-        Serial.println(F("Keep the device still and level..."));
-        sensor.calibrate();
-        Serial.println(F("Recalibration done."));
-    } else if (line == "rezero") {
-        MotionSample s = sensor.read();
-        biasEstX = s.MOUSE_GYRO_CHANNEL_X;
-        biasEstY = s.MOUSE_GYRO_CHANNEL_Y;
-        Serial.println(F("Drift estimate reset to current reading."));
-    } else if (line == "help") {
-        printBanner();
-    } else {
-        Serial.println(F("Unknown command. Type 'help' for the command list."));
-    }
-}
-
-void pollSerialConsole() {
-    while (Serial.available() > 0) {
-        char c = Serial.read();
-        if (c == '\n' || c == '\r') {
-            if (serialLineBuffer.length() > 0) {
-                processSerialCommand(serialLineBuffer);
-                serialLineBuffer = "";
-            }
-        } else {
-            serialLineBuffer += c;
-        }
-    }
-}
-
-// ---------------------------------------------------------------------
-// Setup
-// ---------------------------------------------------------------------
 void setup() {
-    Serial.begin(SERIAL_BAUD);
-    delay(300);
+  Serial.begin(SERIAL_BAUD);
+  delay(300);
+  pinMode(PIN_BUTTON, INPUT_PULLUP);
+  buttonRawLast = readButtonRaw();
+  buttonStable = buttonRawLast;
+  prevButtonStable = buttonStable;
 
-    pinMode(PIN_BUTTON, INPUT_PULLUP);
-    buttonRawLast = readButtonRawPressed();
-    buttonStable = buttonRawLast;
-    prevButtonStable = buttonStable;
-
-    printBanner();
-
-    Serial.println(F("[INIT] Starting MPU6050..."));
-    if (!sensor.begin()) {
-        Serial.println(F("[INIT] ERROR: MPU6050 not found! Check wiring (SDA=GPIO21, SCL=GPIO22, AD0=GPIO4)."));
-    } else {
-        Serial.println(F("[INIT] MPU6050 OK."));
-        Serial.println(F("[INIT] Calibrating... keep the device still and level."));
-        sensor.calibrate();
-    }
-
-    Serial.println(F("[INIT] Starting BLE HID mouse..."));
-    ble.begin();
-
-    Serial.printf("[INIT] Ready. Pair \"%s\" from your device's Bluetooth settings.\n", BLE_DEVICE_NAME);
-    Serial.printf("[INIT] Cursor tracking starts %s.\n", cursorEngaged ? "ENGAGED" : "PAUSED");
+  delay(1000);
+  WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_7dBm);
+  WiFi.disconnect(true);
+  esp_wifi_set_channel(11, WIFI_SECOND_CHAN_NONE);
+  if (esp_now_init() != ESP_OK) { Serial.println(F("[CTRL] esp_now_init failed")); return; }
+  esp_now_register_recv_cb(onRecv);
+  Serial.println(F("[CTRL] EDITH controller boot, searching for HUD..."));
 }
 
-// ---------------------------------------------------------------------
-// Main loop
-// ---------------------------------------------------------------------
+static int loopCnt = 0;
 void loop() {
-    pollSerialConsole();
+  if ((loopCnt++ % 200) == 0) { Serial.print(F("[CTRL] loop ")); Serial.println(loopCnt); }
+  bool pressed = debouncedButton();
+  bool downEdge = pressed && !prevButtonStable;
+  bool upEdge = !pressed && prevButtonStable;
+  prevButtonStable = pressed;
+  uint32_t now = millis();
 
-    bool pressedNow = debouncedButtonPressed();
-    bool pressedEdge = pressedNow && !prevButtonStable;
-    bool releasedEdge = !pressedNow && prevButtonStable;
-    prevButtonStable = pressedNow;
+  if (downEdge) {
+    pressStartMs = now;
+    if (connected) sendPacket(MSG_BUTTON_DOWN, 0, 1);
+    Serial.println(F("[CTRL] button down"));
+  }
+  if (upEdge) {
+    uint32_t dur = now - pressStartMs;
+    if (connected) sendPacket(MSG_BUTTON_UP, dur, 0);
+    Serial.print(F("[CTRL] button up dur="));
+    Serial.println(dur);
+  }
 
-    unsigned long now = millis();
-
-    if (pressedEdge) {
-        pressStartMs = now;
+  if (!peerAdded || (now - lastPeerSeenMs > PEER_TIMEOUT_MS)) {
+    if (connected) { connected = false; Serial.println(F("[CTRL] peer timeout, searching")); }
+    if (peerAdded && now - lastPeerSeenMs > PEER_TIMEOUT_MS) {
+      esp_now_del_peer(hudMac);
+      peerAdded = false;
     }
-
-    if (releasedEdge) {
-        unsigned long heldMs = now - pressStartMs;
-        if (heldMs >= MOUSE_LONG_PRESS_MS) {
-            cursorEngaged = !cursorEngaged;
-            Serial.printf("[MOUSE] Long press -> cursor tracking %s\n", cursorEngaged ? "ENGAGED" : "PAUSED");
-        } else {
-            ble.leftClick();
-#if DEBUG_ENABLED
-            Serial.println(F("[MOUSE] Click"));
-#endif
-        }
+    scanChannels();
+  } else {
+    if (now - lastHeartbeatMs > HEARTBEAT_INTERVAL_MS) {
+      lastHeartbeatMs = now;
+      sendPacket(MSG_HEARTBEAT);
     }
-
-    // Cursor tracking runs continuously, independent of button state --
-    // the button only clicks / toggles tracking, it never gates the sensor
-    // the way the old gesture build's button did.
-    if (now - lastMoveSampleMs >= MOUSE_SAMPLE_INTERVAL_MS) {
-        float dtSeconds = (now - lastMoveSampleMs) / 1000.0f;
-        lastMoveSampleMs = now;
-
-        MotionSample s = sensor.read();
-
-        if (cursorEngaged) {
-            float rawX = s.MOUSE_GYRO_CHANNEL_X;
-            float rawY = s.MOUSE_GYRO_CHANNEL_Y;
-
-            // Continuous drift correction: only learn from readings that
-            // already look nearly still, so real motion is never damped.
-            if (fabsf(rawX) < MOUSE_STILLNESS_DPS) biasEstX += (rawX - biasEstX) * MOUSE_BIAS_ADAPT_RATE;
-            if (fabsf(rawY) < MOUSE_STILLNESS_DPS) biasEstY += (rawY - biasEstY) * MOUSE_BIAS_ADAPT_RATE;
-            rawX -= biasEstX;
-            rawY -= biasEstY;
-
-            if (fabsf(rawX) < MOUSE_DEADZONE_DPS) rawX = 0;
-            if (fabsf(rawY) < MOUSE_DEADZONE_DPS) rawY = 0;
-
-#if MOUSE_INVERT_X
-            rawX = -rawX;
-#endif
-#if MOUSE_INVERT_Y
-            rawY = -rawY;
-#endif
-
-            int dx = (int)roundf(rawX * dtSeconds * MOUSE_SENSITIVITY_X);
-            int dy = (int)roundf(rawY * dtSeconds * MOUSE_SENSITIVITY_Y);
-
-            dx = constrain(dx, -MOUSE_MAX_STEP_PX, MOUSE_MAX_STEP_PX);
-            dy = constrain(dy, -MOUSE_MAX_STEP_PX, MOUSE_MAX_STEP_PX);
-
-            if (dx != 0 || dy != 0) {
-                ble.move(dx, dy);
-            }
-        }
-
-        if (diagnosticMode && (now - lastDiagPrintMs >= 150)) {
-            lastDiagPrintMs = now;
-            Serial.printf("[DIAG] %s  gx=%6.1f gy=%6.1f gz=%6.1f dps  ax=%.2f ay=%.2f az=%.2f g  bias(X=%.2f,Y=%.2f)  BLE=%s\n",
-                          cursorEngaged ? "TRACK" : "PAUSE",
-                          s.gx, s.gy, s.gz, s.ax, s.ay, s.az,
-                          biasEstX, biasEstY,
-                          ble.isConnected() ? "conn" : "----");
-        }
-    }
+  }
+  delay(5);
 }

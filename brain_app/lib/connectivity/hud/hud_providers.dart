@@ -7,8 +7,13 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/storage/settings_store.dart';
 import '../../display/renderer/display_renderer.dart';
+import '../../display/transformations/display_transform.dart';
+import '../../core/config/app_config.dart';
+import '../../input/hud_input_provider.dart';
+import '../../input/input_state_machine.dart';
 import 'hud_connection.dart';
 import 'hud_discovery.dart';
+import 'hud_input_connection.dart';
 
 /// The single shared connection to the glasses.
 final hudConnectionProvider = Provider<HudConnection>((ref) {
@@ -29,6 +34,17 @@ final displayRendererProvider = Provider<DisplayRenderer>((ref) {
   final connection = ref.watch(hudConnectionProvider);
   final renderer = DisplayRenderer();
   renderer.setSink((bytes) => connection.sendFrame(bytes));
+  // Apply saved orientation (flip/rotation) on launch.
+  unawaited((() async {
+    try {
+      renderer.setTransform(DisplayTransform(
+        flipHorizontal: await SettingsStore.getFlipHorizontal(),
+        flipVertical: await SettingsStore.getFlipVertical(),
+        rotation: await SettingsStore.getRotation(),
+        invert: await SettingsStore.getInvert(),
+      ));
+    } catch (_) {}
+  })());
   ref.onDispose(renderer.dispose);
   return renderer;
 });
@@ -68,5 +84,46 @@ Future<void> autoConnectHud(HudConnection hud) async {
     await hud.connect(found.wsUrl);
   } catch (e) {
     debugPrint('[HUD] auto-connect skipped: $e');
+  }
+}
+
+/// Shared controller-input connection (port 82, independent of display WS).
+final hudInputConnectionProvider = Provider<HudInputConnection>((ref) {
+  final c = HudInputConnection();
+  ref.onDispose(() => unawaited(c.dispose()));
+  return c;
+});
+
+final controllerStatusProvider = StreamProvider<ControllerStatus>((ref) async* {
+  final c = ref.watch(hudInputConnectionProvider);
+  yield c.status;
+  yield* c.statusStream;
+});
+
+final inputStateMachineProvider = Provider<InputStateMachine>((ref) {
+  final sm = InputStateMachine();
+  ref.onDispose(sm.dispose);
+  return sm;
+});
+
+final hudInputProvider = Provider<HudInputProvider>((ref) {
+  final p = HudInputProvider(
+    connection: ref.watch(hudInputConnectionProvider),
+    stateMachine: ref.watch(inputStateMachineProvider),
+  );
+  ref.onDispose(() => unawaited(p.stop()));
+  return p;
+});
+
+Future<void> autoConnectHudInput(
+  HudInputConnection input,
+  String? displayUrl,
+) async {
+  try {
+    if (displayUrl == null) return;
+    final uri = Uri.parse(displayUrl);
+    await input.connect('ws://${uri.host}:${AppConfig.hudInputPort}');
+  } catch (e) {
+    debugPrint('[INPUT] auto-connect skipped: $e');
   }
 }

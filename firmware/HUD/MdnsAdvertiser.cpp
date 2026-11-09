@@ -11,6 +11,7 @@ bool MdnsAdvertiser::begin() {
     return false;
   }
   MDNS.addService("ws", "tcp", WS_PORT);
+  MDNS.addService("input", "tcp", INPUT_WS_PORT);
   Serial.println(F("[MDNS] hud.local _ws._tcp:81"));
   return true;
 }

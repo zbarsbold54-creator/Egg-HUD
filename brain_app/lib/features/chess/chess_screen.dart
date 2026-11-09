@@ -17,6 +17,20 @@ class _ChessScreenState extends State<ChessScreen> {
   String? _selected;
   final List<String> _history = [];
 
+  String _symbol(chess_lib.Piece? piece) {
+    if (piece == null) return '';
+    final white = piece.color == chess_lib.Color.WHITE;
+    switch (piece.type) {
+      case chess_lib.PieceType.KING: return white ? '♔' : '♚';
+      case chess_lib.PieceType.QUEEN: return white ? '♕' : '♛';
+      case chess_lib.PieceType.ROOK: return white ? '♖' : '♜';
+      case chess_lib.PieceType.BISHOP: return white ? '♗' : '♝';
+      case chess_lib.PieceType.KNIGHT: return white ? '♘' : '♞';
+      case chess_lib.PieceType.PAWN: return white ? '♙' : '♟';
+    }
+    return '';
+  }
+
   void _onSquare(String sq) {
     if (_selected == null) {
       final piece = _game.get(sq);
@@ -79,9 +93,9 @@ class _ChessScreenState extends State<ChessScreen> {
                       color: selected ? Colors.yellow.shade700 : (isLight ? Colors.grey.shade300 : Colors.grey.shade700),
                       child: Center(
                         child: Text(
-                          piece?.type.name.toUpperCase() ?? '',
+                          _symbol(piece),
                           style: TextStyle(
-                            fontSize: 20,
+                            fontSize: 28,
                             color: piece?.color == chess_lib.Color.WHITE ? Colors.white : Colors.black,
                           ),
                         ),

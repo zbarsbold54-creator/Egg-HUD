@@ -28,6 +28,7 @@
 
 // ---------- WebSocket server ----------
 #define WS_PORT  81
+#define INPUT_WS_PORT  82
 
 // Heartbeat: server pings each client so dead connections (app killed,
 // phone left the WiFi) are dropped instead of lingering as "connected".

@@ -11,6 +11,8 @@
 #include "WSServer.h"
 #include "PowerManager.h"
 #include "OfflineScreen.h"
+#include "EspNowBridge.h"
+#include "InputWSServer.h"
 
 enum class HudState {
   BOOT,
@@ -60,6 +62,8 @@ static void enterRunning() {
   Serial.print(F("[HUD] mDNS: "));
   Serial.println(mdnsOk ? F("ok") : F("failed"));
   WsServer.begin();
+  InputWs.begin();
+  EspNowBridge::begin();
   Power.begin();
 
   Display.clear();
@@ -108,6 +112,8 @@ void loop() {
 
     case HudState::RUNNING: {
       WsServer.loop();
+      InputWs.loop();
+      EspNowBridge::loop();
 
       // Edge-detect new frames to drive the power manager.
       if (WsServer.lastFrameMillis() != lastKnownFrameMillis) {

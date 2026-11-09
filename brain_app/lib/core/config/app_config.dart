@@ -7,6 +7,7 @@ class AppConfig {
   static const String hudHostname = 'hud.local';
   static const String hudServiceType = '_ws._tcp';
   static const int hudPort = 81;
+  static const int hudInputPort = 82;
   static const int frameWidth = 128;
   static const int frameHeight = 64;
   static const int frameBytes = 1024;

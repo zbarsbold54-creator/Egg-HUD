@@ -10,6 +10,7 @@ import '../../core/services/foreground_service.dart';
 import '../../connectivity/hud/hud_discovery.dart';
 import '../../connectivity/hud/hud_connection.dart';
 import '../../connectivity/hud/hud_providers.dart';
+import '../../display/transformations/display_transform.dart';
 import '../../connectivity/hud/hud_provisioning.dart';
 import '../../connectivity/home_assistant/home_assistant_client.dart';
 import '../../display/encoders/display_frame_encoder.dart';
@@ -191,6 +192,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     setState(() => _haStatus = result.message);
   }
 
+  void _applyTransform() {
+    try {
+      ref.read(displayRendererProvider).setTransform(DisplayTransform(
+        flipHorizontal: _flipH,
+        flipVertical: _flipV,
+        rotation: _rotation,
+        invert: _invert,
+      ));
+    } catch (_) {}
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -202,10 +214,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           SwitchListTile(title: const Text('Flip Horizontal'), value: _flipH, onChanged: (v) async {
             setState(() => _flipH = v);
             await SettingsStore.setFlipHorizontal(v);
+            _applyTransform();
           }),
           SwitchListTile(title: const Text('Flip Vertical'), value: _flipV, onChanged: (v) async {
             setState(() => _flipV = v);
             await SettingsStore.setFlipVertical(v);
+            _applyTransform();
           }),
           ListTile(
             title: const Text('Rotation'),
@@ -215,12 +229,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: (v) async {
                 setState(() => _rotation = v!);
                 await SettingsStore.setRotation(v!);
+                _applyTransform();
               },
             ),
           ),
           SwitchListTile(title: const Text('Invert'), value: _invert, onChanged: (v) async {
             setState(() => _invert = v);
             await SettingsStore.setInvert(v);
+            _applyTransform();
           }),
           ListTile(
             title: const Text('Threshold (brightness simulation)'),
