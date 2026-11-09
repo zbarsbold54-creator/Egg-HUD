@@ -58,6 +58,10 @@ class SettingsStore {
   static Future<String?> getHaToken() => _secure.read(key: 'ha_token');
   static Future<void> deleteHaToken() => _secure.delete(key: 'ha_token');
 
+  // Idle (minutes before blank + sleep)
+  static Future<void> setIdleTimeoutMin(int v) => _prefs.setInt('idleTimeoutMin', v);
+  static Future<int> getIdleTimeoutMin() async => (await _prefs.getInt('idleTimeoutMin')) ?? 5;
+
   // Navigation (OSRM)
   static Future<void> setOsrmEndpoint(String v) => _prefs.setString('osrmEndpoint', v);
   static Future<String> getOsrmEndpoint() async => (await _prefs.getString('osrmEndpoint')) ?? 'https://router.project-osrm.org';

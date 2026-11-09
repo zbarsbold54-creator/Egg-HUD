@@ -47,6 +47,8 @@ class HudForegroundService {
   }
 
   /// Start the foreground service (Android only).
+  /// Requests RECORD_AUDIO/location first, starts with granted types only,
+  /// and only while the app is visible (caller must check lifecycle).
   /// Returns true if started, false if not supported or failed.
   static Future<bool> start() async {
     try {

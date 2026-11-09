@@ -42,3 +42,7 @@ Instead of text frames on port 81 (which would break the frozen 1024-byte binary
 - {"cmd":"clear"}
 
 Port 81 stays binary-only. Port 82 becomes bidirectional JSON. Requires HUD InputWSServer to handle incoming text (currently send-only).
+
+## P10. HUD synthesizes button_up on heartbeat released (PROPOSED)
+
+If HUD receives heartbeat with buttonState=0 while it believes button is down (lost UP packet), HUD synthesizes button_up on port 82 with duration = now - downTime. Prevents app indefinite hold even without app-side cap. App cap (5s) is defense-in-depth.

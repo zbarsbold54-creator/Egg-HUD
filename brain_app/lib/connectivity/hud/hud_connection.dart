@@ -76,7 +76,8 @@ class HudConnection {
     if (!_stateController.isClosed) _stateController.add(s);
   }
 
-  /// Connect to [url] (e.g. ws://192.168.1.50:81 or ws://hud.local:81) and
+  /// Connect to [url] (e.g. ws://192.168.1.50:81 or ws://hud.local:81).
+  /// If already connected, latest wins (old channel closed, new one used).
   /// keep reconnecting until [disconnect]. Returns true if this attempt
   /// connected; on false, [lastError] says why and retries continue in the
   /// background.

@@ -215,6 +215,7 @@ final inputStateMachineProvider = Provider<InputStateMachine>((ref) { ... });
 ```
 
 - **One shared HudConnection** for the whole app (was: private instance in Settings that died with the screen).
+- **Foreground service:** `connectedDevice` type (not dataSync). Permissions: FOREGROUND_SERVICE + CONNECTED_DEVICE. RECORD_AUDIO/location requested first, service starts with granted types only, only while app visible. Android 15 timeout falls back to connectedDevice + notification.
 - **Auto-connect** on launch: saved IP first, else discovery once. Re-discovers if saved IP stale.
 - **Lifecycle:** AppLifecycle registered as WidgetsBindingObserver. On resume to ensureConnected() + forceFrame().
 
@@ -223,6 +224,7 @@ final inputStateMachineProvider = Provider<InputStateMachine>((ref) { ... });
 - Single reconnect owner (_scheduleReconnect), generation counter (stale callbacks ignored).
 - connect() returns true/false, real error in lastError. No unhandled Completer errors.
 - sendFrame: drops unless connected, latest-frame-wins, ~15 fps pacing (66ms min interval), no unbounded queue.
+- Display clients: HUD accepts multiple WS clients (count, not bool). App-side latest wins (new connect closes old channel).
 - 8s ready timeout. Backoff 1s to 30s capped. disconnect() stops retrying.
 - hostToUrl(): "192.168.1.27" to "ws://192.168.1.27:81", empty to null (no ws://:81).
 
@@ -243,7 +245,7 @@ Order: DNS-SD PTR to SRV to A to hostname A (hud.local) to system resolver to la
 - HudInputProvider feeds InputStateMachine:
   - button_down to onButtonDown() (starts 2s exit timer)
   - button_up to onButtonUpWithDuration(duration) (preserves Morse timing)
-- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings. SEARCHING means no ESP-NOW peer yet (normal at boot). Seq resets on reconnect (controller reboot resets seq to 0; large backward jumps accepted as reset).
+- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings. SEARCHING means no ESP-NOW peer yet (normal at boot). Seq resets on reconnect AND on status CONNECTED (controller reboot resets seq to 0; large backward jumps >100 accepted as reset). Firmware sends status CONNECTED only on new input WS client connect, NOT on controller re-announce.
 
 ### 6.5 Input state machine (input_state_machine.dart)
 
@@ -280,7 +282,11 @@ Screen (Flutter) draws into Framebuffer (128x64, 1bpp)
 Each screen draws into the shared canvas via DisplayRenderer.canvas, then calls requestFrame():
 
 - **Dashboard:** EDITH orb + status (HUD/CTRL/WiFi) + module grid. HUD shows compact status.
-- **Always-on:** AlwaysOnScreen draws time (large) + HUD/CTRL status + music every 10s. Idle = no input for 60s. Pixel-shift (4px cycle) + dim (every other row cleared) to avoid OLED burn-in. Started on launch in app.dart.
+- **Always-on (3 tiers):**
+  - Tier 1 (active): redraw every 10s, full brightness.
+  - Tier 2 (idle 60s no input): pixel-shift 4px cycle + dim (every other row cleared) to avoid burn-in. Frames continue, firmware stays awake.
+  - Tier 3 (sleep N min, default 5, configurable): send one blank frame, then stop sending. Firmware sleeps after 30s no-frame. Any input/interaction calls notifyInput() to forceFrame() and resume.
+  - Firmware wakes on frame (onFrameReceived), NOT on controller press directly. Controller press wakes app via input WS, app sends frame, firmware wakes.
 - **Music:** Bars animate while playing (visualizer demo). HUD shows track + bars.
 - **Chess:** Board with unicode pieces. HUD shows monochrome board.
 - **Assistant:** EDITH character state (idle/listening/thinking/speaking). HUD shows state text.
@@ -338,7 +344,8 @@ cd brain_app
 flutter pub get
 flutter analyze
 flutter test          # 50 tests
-flutter build apk --debug
+flutter build apk --debug   # 175MB debug
+flutter build apk --release # 52MB release, signed CN=GLAS (glas-release.jks, gitignored)
 ```
 
 PC test (no app needed):

@@ -24,9 +24,7 @@
 
     <!-- Background: foreground service for HUD WebSocket keep-alive -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE"/>
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE"/>
     <uses-permission android:name="android.permission.WAKE_LOCK"/>
 
     <application
@@ -58,7 +56,7 @@
         <!-- Foreground service for HUD WebSocket keep-alive (screen-off) -->
         <service
             android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
-            android:foregroundServiceType="dataSync|microphone|location"
+            android:foregroundServiceType="connectedDevice"
             android:exported="false" />
     </application>
     <queries>

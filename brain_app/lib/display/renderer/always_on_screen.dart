@@ -10,6 +10,8 @@ class AlwaysOnScreen {
   final DisplayRenderer renderer;
   Timer? _timer;
   DateTime _lastInput = DateTime.now();
+  int _idleTimeoutMin = 5;
+  bool _sleeping = false;
   int _shiftX = 0;
   int _shiftY = 0;
   String hudStatus = 'HUD: --';
@@ -18,7 +20,15 @@ class AlwaysOnScreen {
 
   AlwaysOnScreen(this.renderer);
 
-  void notifyInput() => _lastInput = DateTime.now();
+  void notifyInput() {
+    _lastInput = DateTime.now();
+    if (_sleeping) {
+      _sleeping = false;
+      renderer.forceFrame(); // resume rendering
+    }
+  }
+
+  void setIdleTimeoutMin(int m) => _idleTimeoutMin = m;
 
   void start() {
     _draw();
@@ -29,6 +39,15 @@ class AlwaysOnScreen {
 
   void _draw() {
     final now = DateTime.now();
+    // Tier 3: N minutes no input -> blank frame + stop (firmware sleeps)
+    if (now.difference(_lastInput) > Duration(minutes: _idleTimeoutMin)) {
+      if (!_sleeping) {
+        _sleeping = true;
+        renderer.canvas.clear();
+        renderer.forceFrame(); // one blank frame, then stop
+      }
+      return; // stop sending frames
+    }
     final idle = now.difference(_lastInput) > const Duration(seconds: 60);
     // Pixel-shift every draw when idle (burn-in prevention)
     if (idle) {

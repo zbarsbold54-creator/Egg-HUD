@@ -61,6 +61,9 @@ class InputStateMachine {
   // For very-long-press detection (all modes)
   Timer? _veryLongTimer;
   bool _veryLongTriggered = false;
+  // Max-hold cap: if button_up is lost, force release after 5s (prevents indefinite hold).
+  Timer? _maxHoldTimer;
+  static const Duration _maxHoldCap = Duration(seconds: 5);
 
   // For Morse mode: preserve timing
   final List<ButtonPressEvent> _morsePresses = [];
@@ -94,6 +97,11 @@ class InputStateMachine {
   /// Call on button press (down).
   void onButtonDown() {
     _veryLongTriggered = false;
+    _maxHoldTimer?.cancel();
+    _maxHoldTimer = Timer(_maxHoldCap, () {
+      // Missing button_up — force release to avoid indefinite hold.
+      onButtonUpWithDuration(_maxHoldCap);
+    });
     // Start very-long-press timer (2s) — priority in every mode
     _veryLongTimer?.cancel();
     _veryLongTimer = Timer(_timing.veryLongPress, () {
@@ -132,6 +140,7 @@ class InputStateMachine {
   /// Call on button release with actual press duration.
   /// Preferred API — preserves timing for Morse decoding.
   void onButtonUpWithDuration(Duration pressDuration) {
+    _maxHoldTimer?.cancel();
     _veryLongTimer?.cancel();
     if (_veryLongTriggered) return;
 
@@ -220,6 +229,7 @@ class InputStateMachine {
   void dispose() {
     _doublePressTimer?.cancel();
     _veryLongTimer?.cancel();
+    _maxHoldTimer?.cancel();
     _controller.close();
   }
 }
