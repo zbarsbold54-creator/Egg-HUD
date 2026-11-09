@@ -185,18 +185,39 @@ class HudConnection {
     });
   }
 
-  /// Send a 1024-byte binary frame. Returns true if submitted to socket.
+  static const Duration _minFrameInterval = Duration(milliseconds: 66); // ~15 fps
+  DateTime? _lastSend;
+  List<int>? _pendingFrame;
+
+  /// Send a 1024-byte binary frame. Latest-frame-wins, ~15 fps pacing.
+  /// Drops unless connected. No unbounded queue.
   /// Does NOT prove physical display — only local socket write.
   bool sendFrame(List<int> bytes) {
     if (bytes.length != AppConfig.frameBytes) return false;
+    if (!isConnected) return false;
+    final now = DateTime.now();
+    if (_lastSend != null && now.difference(_lastSend!) < _minFrameInterval) {
+      _pendingFrame = bytes; // keep latest, drop older
+      return true; // accepted (will send latest on next tick)
+    }
+    _lastSend = now;
+    _pendingFrame = null;
     final channel = _channel;
-    if (channel == null || !isConnected) return false;
+    if (channel == null) return false;
     try {
       channel.sink.add(bytes is Uint8List ? bytes : Uint8List.fromList(bytes));
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Flush pending latest frame (called by timer or on demand).
+  void flushPending() {
+    final f = _pendingFrame;
+    if (f == null || !isConnected) return;
+    _pendingFrame = null;
+    sendFrame(f);
   }
 
   Future<void> _closeChannel() async {

@@ -44,6 +44,24 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.jarvis.brain_app/battery")
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "requestExemption" -> {
+                        try {
+                            if (Build.VERSION.SDK_INT >= 23) {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                                intent.data = android.net.Uri.parse("package:$packageName")
+                                startActivity(intent)
+                            }
+                            result.success(true)
+                        } catch (e: Exception) {
+                            result.error("BATTERY", e.message, null)
+                        }
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.jarvis.brain_app/volume")
             .setMethodCallHandler { call, result ->
                 val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager

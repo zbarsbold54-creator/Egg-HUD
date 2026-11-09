@@ -4,6 +4,7 @@ library;
 
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/storage/settings_store.dart';
 import '../../core/services/foreground_service.dart';
@@ -388,6 +389,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 await HudForegroundService.stop();
               }
             },
+          ),
+          ListTile(
+            title: const Text('Battery optimization'),
+            subtitle: const Text('Exempt GLAS from battery optimization so the HUD stays connected in background.'),
+            trailing: ElevatedButton(
+              onPressed: () async {
+                try {
+                  await MethodChannel('com.jarvis.brain_app/battery').invokeMethod('requestExemption');
+                } catch (_) {}
+              },
+              child: const Text('Exempt'),
+            ),
           ),
           ListTile(
             title: const Text('Keep-alive Interval (s)'),

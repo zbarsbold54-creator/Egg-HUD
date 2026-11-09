@@ -1,11 +1,12 @@
-/// Music controls with animated frequency bars (lows/bass/mids/highs).
-/// Bars animate while playing — visualizer, not real FFT (ponytail: minimal).
+/// Music: real playback via audioplayers + real phone volume.
+/// Plays a test stream (SoundHelix sample). Bars animate while playing.
 library;
 
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:audioplayers/audioplayers.dart';
 
 class MusicScreen extends StatefulWidget {
   const MusicScreen({super.key});
@@ -14,17 +15,32 @@ class MusicScreen extends StatefulWidget {
 }
 
 class _MusicScreenState extends State<MusicScreen> {
-  final String _track = 'No track';
-  final String _artist = '';
-  bool _playing = false;
-  double _progress = 0;
-  double _volume = 0.5;
+  final AudioPlayer _player = AudioPlayer();
   static const _volChannel = MethodChannel('com.jarvis.brain_app/volume');
+  // SoundHelix test track (public sample)
+  static const _trackUrl = 'https://www.soundhelix.com/examples/soundhelix-songs-1.mp3';
+  bool _playing = false;
+  double _volume = 0.5;
+  Timer? _timer;
+  final List<double> _bars = List.generate(16, (_) => 0.2);
+  final _rand = math.Random();
 
   @override
   void initState() {
     super.initState();
     _loadVolume();
+    _player.onPlayerStateChanged.listen((s) {
+      if (!mounted) return;
+      setState(() => _playing = s == PlayerState.playing);
+      if (s == PlayerState.playing) { _startBars(); } else { _timer?.cancel(); }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _player.dispose();
+    super.dispose();
   }
 
   Future<void> _loadVolume() async {
@@ -37,33 +53,33 @@ class _MusicScreenState extends State<MusicScreen> {
   Future<void> _setVolume(double v) async {
     setState(() => _volume = v);
     try { await _volChannel.invokeMethod('set', {'value': v}); } catch (_) {}
-  }
-  Timer? _timer;
-  final List<double> _bars = List.generate(16, (_) => 0.2);
-  final _rand = math.Random();
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
+    try { await _player.setVolume(v); } catch (_) {}
   }
 
-  void _togglePlay() {
-    setState(() => _playing = !_playing);
-    _timer?.cancel();
-    if (_playing) {
-      _timer = Timer.periodic(const Duration(milliseconds: 120), (_) {
-        setState(() {
-          for (int i = 0; i < _bars.length; i++) {
-            // Bass (low indices) moves more, highs less — fake spectrum
-            final energy = 1.0 - (i / _bars.length) * 0.6;
-            _bars[i] = (_bars[i] + (_rand.nextDouble() * energy * 0.5)).clamp(0.05, 1.0);
-            _bars[i] *= 0.85;
-          }
-          _progress = (_progress + 0.005) % 1.0;
-        });
-      });
+  Future<void> _togglePlay() async {
+    try {
+      if (_playing) {
+        await _player.pause();
+      } else {
+        await _player.play(UrlSource(_trackUrl));
+      }
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Playback failed: $e')));
     }
+  }
+
+  void _startBars() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(milliseconds: 120), (_) {
+      if (!mounted) return;
+      setState(() {
+        for (int i = 0; i < _bars.length; i++) {
+          final energy = 1.0 - (i / _bars.length) * 0.6;
+          _bars[i] = (_bars[i] + (_rand.nextDouble() * energy * 0.5)).clamp(0.05, 1.0);
+          _bars[i] *= 0.85;
+        }
+      });
+    });
   }
 
   @override
@@ -74,10 +90,9 @@ class _MusicScreenState extends State<MusicScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Text(_track, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            Text(_artist),
+            const Text('SoundHelix Sample', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const Text('Test track — real playback'),
             const SizedBox(height: 16),
-            // Animated bars: lows | bass | mids | highs
             SizedBox(
               height: 120,
               child: Row(
@@ -104,18 +119,16 @@ class _MusicScreenState extends State<MusicScreen> {
                 Text('HIGH', style: TextStyle(fontSize: 10)),
               ],
             ),
-            const SizedBox(height: 16),
-            LinearProgressIndicator(value: _progress),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                IconButton(icon: const Icon(Icons.skip_previous), onPressed: () {}),
+                IconButton(icon: const Icon(Icons.skip_previous), onPressed: () async { try { await _player.seek(Duration.zero); } catch (_) {} }),
                 IconButton(
                   icon: Icon(_playing ? Icons.pause : Icons.play_arrow, size: 48),
                   onPressed: _togglePlay,
                 ),
-                IconButton(icon: const Icon(Icons.skip_next), onPressed: () {}),
+                IconButton(icon: const Icon(Icons.skip_next), onPressed: () async { try { await _player.seek(const Duration(seconds: 30)); } catch (_) {} }),
               ],
             ),
             const SizedBox(height: 16),

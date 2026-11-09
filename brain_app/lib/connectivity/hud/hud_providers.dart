@@ -31,7 +31,7 @@ final hudStateProvider = StreamProvider<HudConnectionState>((ref) async* {
 
 /// Shared render engine; its frames go to the shared connection.
 final displayRendererProvider = Provider<DisplayRenderer>((ref) {
-  final connection = ref.watch(hudConnectionProvider);
+  final connection = ref.read(hudConnectionProvider);
   final renderer = DisplayRenderer();
   renderer.setSink((bytes) => connection.sendFrame(bytes));
   // Apply saved orientation (flip/rotation) on launch.

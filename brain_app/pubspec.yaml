@@ -31,6 +31,8 @@ dependencies:
   sensors_plus: ^6.1.2
   geolocator: ^14.0.1
 
+  audioplayers: ^6.1.0
+
   # Chess rules
   chess: ^0.8.1
 

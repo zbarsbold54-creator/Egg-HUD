@@ -1,4 +1,7 @@
 /// Messages and notifications. Requests POST_NOTIFICATIONS on Android 13+.
+/// Mirroring (reading other apps' notifications) needs NotificationListenerService
+/// (Android system service, requires user grant in Settings). Stubbed behind
+/// _mirroringEnabled setting — not implemented.
 library;
 
 import 'package:flutter/material.dart';
@@ -24,6 +27,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   final List<NotificationItem> _items = [];
   bool _granted = false;
   bool _checking = true;
+  bool _mirroringEnabled = false; // stub: needs NotificationListenerService
 
   @override
   void initState() {
@@ -69,7 +73,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                 ),
               ),
             if (!_checking && _granted)
-              const Card(child: ListTile(title: Text('Notifications enabled'), subtitle: Text('Messages will appear here.'))),
+              Card(
+                child: ListTile(
+                  title: const Text('Notifications enabled'),
+                  subtitle: const Text('Mirroring other apps needs NotificationListenerService (system grant). Not implemented — stub.'),
+                  trailing: Switch(value: _mirroringEnabled, onChanged: (v) => setState(() => _mirroringEnabled = v)),
+                ),
+              ),
             Expanded(
               child: _items.isEmpty
                   ? const Center(child: Text('No notifications.'))

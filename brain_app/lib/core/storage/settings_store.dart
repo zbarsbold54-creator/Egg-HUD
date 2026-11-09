@@ -58,6 +58,12 @@ class SettingsStore {
   static Future<String?> getHaToken() => _secure.read(key: 'ha_token');
   static Future<void> deleteHaToken() => _secure.delete(key: 'ha_token');
 
+  // Navigation (OSRM)
+  static Future<void> setOsrmEndpoint(String v) => _prefs.setString('osrmEndpoint', v);
+  static Future<String> getOsrmEndpoint() async => (await _prefs.getString('osrmEndpoint')) ?? 'https://router.project-osrm.org';
+  static Future<void> setOsrmProfile(String v) => _prefs.setString('osrmProfile', v);
+  static Future<String> getOsrmProfile() async => (await _prefs.getString('osrmProfile')) ?? 'foot';
+
   // Input timing (ms)
   static Future<void> setShortMax(int v) => _prefs.setInt('shortMax', v);
   static Future<int> getShortMax() async => (await _prefs.getInt('shortMax')) ?? 400;

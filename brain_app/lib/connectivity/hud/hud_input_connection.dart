@@ -99,6 +99,7 @@ class HudInputConnection {
     }
     if (_disposed || gen != _gen) return false;
     _attempts = 0;
+    _lastSeq = -1; // controller may have rebooted (seq reset)
     _set(ControllerStatus.connected);
     debugPrint('[INPUT] connected to $url');
     return true;
@@ -150,8 +151,17 @@ class HudInputConnection {
         }
         return;
       }
-      // Duplicate protection: ignore seq <= lastSeq for button events
-      if (seq <= _lastSeq && type.startsWith('button')) return;
+      // Duplicate protection: ignore seq <= lastSeq, unless large backward jump (reboot/reset)
+      if (type.startsWith('button')) {
+        if (seq <= _lastSeq) {
+          // Large backward jump (e.g. 1000 -> 0) means controller rebooted; accept as reset.
+          if (_lastSeq - seq > 100) {
+            _lastSeq = -1;
+          } else {
+            return;
+          }
+        }
+      }
       _lastSeq = seq;
       final dur = (j['durationMs'] as num?)?.toInt() ?? 0;
       if (!_events.isClosed) {

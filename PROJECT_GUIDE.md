@@ -222,12 +222,13 @@ final inputStateMachineProvider = Provider<InputStateMachine>((ref) { ... });
 
 - Single reconnect owner (_scheduleReconnect), generation counter (stale callbacks ignored).
 - connect() returns true/false, real error in lastError. No unhandled Completer errors.
+- sendFrame: drops unless connected, latest-frame-wins, ~15 fps pacing (66ms min interval), no unbounded queue.
 - 8s ready timeout. Backoff 1s to 30s capped. disconnect() stops retrying.
 - hostToUrl(): "192.168.1.27" to "ws://192.168.1.27:81", empty to null (no ws://:81).
 
 ### 6.3 Discovery (hud_discovery.dart)
 
-Order: DNS-SD PTR to SRV to A to hostname A to system resolver to last saved IP to manual.
+Order: DNS-SD PTR to SRV to A to hostname A (hud.local) to system resolver to last saved IP to manual. Every IP verified with Socket.connect (2s timeout). InternetAddress.lookup is last-resort only (Android rarely resolves .local). NsdManager not used — multicast_dns covers all platforms with one code path.
 
 - **PTR to SRV to A** (was: A on instance name, never worked). Uses SRV port.
 - Android: CHANGE_WIFI_MULTICAST_STATE + MulticastLock via MainActivity.kt channel.
@@ -242,14 +243,14 @@ Order: DNS-SD PTR to SRV to A to hostname A to system resolver to last saved IP 
 - HudInputProvider feeds InputStateMachine:
   - button_down to onButtonDown() (starts 2s exit timer)
   - button_up to onButtonUpWithDuration(duration) (preserves Morse timing)
-- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings.
+- Status: DISCONNECTED/SEARCHING/CONNECTING/CONNECTED/RECONNECTING/ERROR to dashboard + Settings. SEARCHING means no ESP-NOW peer yet (normal at boot). Seq resets on reconnect (controller reboot resets seq to 0; large backward jumps accepted as reset).
 
 ### 6.5 Input state machine (input_state_machine.dart)
 
 | Mode | Short | Double | 2s hold |
 |------|-------|--------|---------|
 | Normal | next | select | exit |
-| Morse | dot (<200ms) | dash (>=200ms) | exit (no char) |
+| Morse | dot (<200ms) | dash (>=200ms) | exit (no char, 2s hold) |
 | Voice | toggle | — | exit |
 
 - Double-press waits for window (doesn't fire short first).
@@ -279,7 +280,7 @@ Screen (Flutter) draws into Framebuffer (128x64, 1bpp)
 Each screen draws into the shared canvas via DisplayRenderer.canvas, then calls requestFrame():
 
 - **Dashboard:** EDITH orb + status (HUD/CTRL/WiFi) + module grid. HUD shows compact status.
-- **Always-on:** AlwaysOnScreen draws time (large) + HUD/CTRL status + music every 10s. Started on launch in app.dart.
+- **Always-on:** AlwaysOnScreen draws time (large) + HUD/CTRL status + music every 10s. Idle = no input for 60s. Pixel-shift (4px cycle) + dim (every other row cleared) to avoid OLED burn-in. Started on launch in app.dart.
 - **Music:** Bars animate while playing (visualizer demo). HUD shows track + bars.
 - **Chess:** Board with unicode pieces. HUD shows monochrome board.
 - **Assistant:** EDITH character state (idle/listening/thinking/speaking). HUD shows state text.
@@ -313,9 +314,9 @@ renderer.setTransform(DisplayTransform(
 |--------|-------|--------------|---------|
 | Dashboard | / | EDITH orb, real HUD/CTRL status, 10 modules | — |
 | Assistant | /assistant | STT to HA to Hermes to TTS, interrupt, requestId guards | HA URL + token in Settings |
-| Navigation | /navigation | GPS stream + OSRM route steps | Location permission + network |
+| Navigation | /navigation | GPS stream + OSRM route steps (configurable endpoint, foot profile default) | Location permission + network |
 | Music | /music | Real playback (SoundHelix sample) + real phone volume + bars | Internet (sample URL) |
-| Notifications | /notifications | Real POST_NOTIFICATIONS request | Android 13+ permission |
+| Notifications | /notifications | Real POST_NOTIFICATIONS request. Mirroring needs NotificationListenerService (stubbed behind setting, not implemented) | Android 13+ permission |
 | Translator | /translator | STT + language select. Engine not configured (honest message) | Needs ML Kit/REST |
 | Teleprompter | /teleprompter | Script, speed, play/pause, position preserved | — |
 | Chess | /chess | Full rules (chess package), point+click, unicode pieces | — |

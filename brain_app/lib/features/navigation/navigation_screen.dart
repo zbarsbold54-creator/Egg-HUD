@@ -12,6 +12,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
+import '../../core/storage/settings_store.dart';
 
 class NavigationScreen extends StatefulWidget {
   const NavigationScreen({super.key});
@@ -71,7 +72,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
       // Demo destination: 1km north (replace with user input in production)
       final destLat = pos.latitude + 0.009;
       final destLon = pos.longitude;
-      final url = 'https://router.project-osrm.org/route/v1/driving/${pos.longitude},${pos.latitude};$destLon,$destLat?overview=false&steps=true';
+      final endpoint = await SettingsStore.getOsrmEndpoint();
+      final profile = await SettingsStore.getOsrmProfile();
+      final url = '$endpoint/route/v1/$profile/${pos.longitude},${pos.latitude};$destLon,$destLat?overview=false&steps=true';
       final res = await http.get(Uri.parse(url)).timeout(const Duration(seconds: 10));
       if (res.statusCode != 200) throw Exception('OSRM failed (HTTP ${res.statusCode})');
       final json = jsonDecode(res.body) as Map<String, dynamic>;

@@ -109,6 +109,12 @@ class InputStateMachine {
     });
   }
 
+  /// Cancel pending very-long-press exit (e.g. heartbeat shows button released).
+  void cancelExitTimer() {
+    _veryLongTimer?.cancel();
+    _veryLongTriggered = false;
+  }
+
   /// Call on button release (up).
   void onButtonUp() {
     _veryLongTimer?.cancel();

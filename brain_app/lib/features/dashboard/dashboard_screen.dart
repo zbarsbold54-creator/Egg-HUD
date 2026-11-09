@@ -51,8 +51,8 @@ class DashboardScreen extends ConsumerWidget {
               assistantConnected: false,
             ),
           ),
-          const SizedBox(height: 24),
-          Center(child: EdithCharacter(state: edithState, size: 140)),
+          const SizedBox(height: 8),
+          Center(child: EdithCharacter(state: edithState, size: 80)),
           const SizedBox(height: 8),
           Center(
             child: Text(
@@ -82,7 +82,7 @@ class DashboardScreen extends ConsumerWidget {
                   style: TextStyle(fontSize: 12, color: Colors.red),
                 ),
               ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 8),
           ModuleGrid(
             items: [
               ModuleItem(

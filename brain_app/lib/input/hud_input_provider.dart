@@ -25,6 +25,12 @@ class HudInputProvider implements InputProvider {
 
   @override
   Future<void> start() async {
+    connection.statusStream.listen((s) {
+      // If controller reports disconnected/error, button is released — cancel exit.
+      if (s == ControllerStatus.disconnected || s == ControllerStatus.error) {
+        stateMachine.cancelExitTimer();
+      }
+    });
     _sub = connection.events.listen((e) {
       if (e.type == 'button_down') {
         stateMachine.onButtonDown();

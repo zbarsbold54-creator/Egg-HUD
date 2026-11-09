@@ -1,5 +1,10 @@
 /// Display transformations applied to the final framebuffer before send.
 ///
+/// Logical canvas is always 128x64. Rotation 90/270 rotates within the
+/// canvas (center-cropped) to preserve the 1024-byte wire size — it does
+/// NOT change the logical size. The OLED is always 128x64 landscape;
+/// rotation is a visual orientation fix for sideways mounts.
+///
 /// All transforms operate on the 128x64 pixel space consistently.
 /// Horizontal and vertical flips are independent. Rotation is 0/90/180/270.
 /// Inversion flips every pixel. Threshold simulates brightness by
