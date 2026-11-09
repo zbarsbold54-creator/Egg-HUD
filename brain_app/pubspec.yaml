@@ -28,8 +28,6 @@ dependencies:
   flutter_tts: ^4.2.3
 
   # Platform info
-  battery_plus: ^6.2.1
-  connectivity_plus: ^6.1.5
   sensors_plus: ^6.1.2
   geolocator: ^14.0.1
 
