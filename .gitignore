@@ -1,0 +1,57 @@
+# Flutter / Dart
+brain_app/build/
+brain_app/.dart_tool/
+brain_app/.flutter-plugins
+brain_app/.flutter-plugins-dependencies
+brain_app/.packages
+brain_app/.pub-cache/
+brain_app/.pub/
+*.iml
+.idea/
+.vscode/
+*.log
+*.tmp
+
+# Android
+brain_app/android/.gradle/
+brain_app/android/captures/
+brain_app/android/local.properties
+brain_app/android/app/build/
+brain_app/android/app/*.jks
+brain_app/android/app/*.keystore
+brain_app/android/key.properties
+*.jks
+*.keystore
+key.properties
+
+# Arduino
+firmware/HUD/build/
+*.hex
+*.bin
+*.elf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*~
+
+# Secrets / credentials — never commit
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+secrets.json
+wifi*.txt
+*password*.txt
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Local fix package (keep repo clean)
+glasses_connection_fix.zip
+
+# NOTE: APK is tracked via Git LFS (see .gitattributes) — do not ignore *.apk
