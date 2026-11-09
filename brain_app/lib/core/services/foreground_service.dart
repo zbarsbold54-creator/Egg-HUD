@@ -101,5 +101,11 @@ class HudTaskHandler extends TaskHandler {
   void onRepeatEvent(DateTime timestamp) {}
 
   @override
-  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {}
+  Future<void> onDestroy(DateTime timestamp, bool isTimeout) async {
+    // Android 15 dataSync timeout: restart service or switch to specialUse.
+    // flutter_foreground_task handles restart via autoRunOnBoot; log for diagnostics.
+    if (isTimeout) {
+      // ponytail: restart is handled by plugin; no custom logic needed.
+    }
+  }
 }

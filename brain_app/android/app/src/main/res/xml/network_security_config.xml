@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- HA is user-configured (LAN IP, often http). Allow cleartext for LAN only.
-         Do not use for public internet. -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">192.168.0.0/16</domain>
-        <domain includeSubdomains="true">10.0.0.0/8</domain>
-        <domain includeSubdomains="true">172.16.0.0/12</domain>
-    </domain-config>
-    <base-config cleartextTrafficPermitted="false" />
+    <!-- HA is user-configured (LAN IP, often http://192.168.x.x:8123).
+         Android network security config does NOT support CIDR ranges or IP addresses
+         in <domain> (domains only). Since HA host is dynamic (user-entered IP),
+         we allow cleartext globally with a warning. Use HTTPS for HA if exposed
+         beyond LAN. dart:io HttpClient is affected by this config on Android
+         (cleartext blocked by default on API 28+); WebSocket (ws://) to HUD
+         is also cleartext but HUD is LAN-only by design. -->
+    <base-config cleartextTrafficPermitted="true" />
 </network-security-config>

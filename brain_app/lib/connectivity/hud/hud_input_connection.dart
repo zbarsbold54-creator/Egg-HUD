@@ -147,7 +147,12 @@ class HudInputConnection {
       if (type == 'status') {
         final code = (j['code'] as num?)?.toInt() ?? 0;
         if (code >= 0 && code < ControllerStatus.values.length) {
-          _set(ControllerStatus.values[code]);
+          final s = ControllerStatus.values[code];
+          _set(s);
+          // Controller CONNECTED means fresh session (possible reboot) — reset seq.
+          if (s == ControllerStatus.connected) {
+            _lastSeq = -1;
+          }
         }
         return;
       }
