@@ -1,6 +1,5 @@
 /// Common input abstraction. Hardware-independent.
-/// Future physical buttons/remotes plug in via [FutureHardwareInput]
-/// without redesigning the UI.
+/// Physical buttons plug in via HudInputProvider without redesigning the UI.
 library;
 
 enum InputType {

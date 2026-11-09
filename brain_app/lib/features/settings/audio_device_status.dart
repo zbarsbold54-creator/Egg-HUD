@@ -27,6 +27,7 @@ class _AudioDeviceStatusState extends State<AudioDeviceStatus> {
   Future<void> _load() async {
     final inputs = await AudioDeviceService.getInputDevices();
     final outputs = await AudioDeviceService.getOutputDevices();
+    if (!mounted) return;
     setState(() {
       _inputs = inputs;
       _outputs = outputs;
