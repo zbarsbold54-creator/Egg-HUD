@@ -21,9 +21,14 @@ class ModuleGrid extends StatelessWidget {
       itemCount: items.length,
       itemBuilder: (context, i) {
         final item = items[i];
-        return Card(
+        return Semantics(
+          button: true,
+          label: item.label,
+          child: Card(
           child: InkWell(
             onTap: item.onTap,
+            // Accessibility: screen readers announce the module name.
+            // (InkWell provides tap semantics; label is visible text.)
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -33,6 +38,7 @@ class ModuleGrid extends StatelessWidget {
               ],
             ),
           ),
+        ),
         );
       },
     );
