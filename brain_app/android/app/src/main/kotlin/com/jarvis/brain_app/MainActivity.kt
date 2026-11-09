@@ -44,6 +44,20 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.jarvis.brain_app/volume")
+            .setMethodCallHandler { call, result ->
+                val audio = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                when (call.method) {
+                    "get" -> result.success(audio.getStreamVolume(android.media.AudioManager.STREAM_MUSIC).toFloat() / audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC))
+                    "set" -> {
+                        val v = call.argument<Float>("value") ?: 0.5f
+                        val max = audio.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                        audio.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, (v * max).toInt(), 0)
+                        result.success(true)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.jarvis.brain_app/notifications")
             .setMethodCallHandler { call, result ->
                 when (call.method) {

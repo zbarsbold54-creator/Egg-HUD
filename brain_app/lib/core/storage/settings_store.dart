@@ -15,7 +15,7 @@ class SettingsStore {
   static Future<void> setFlipVertical(bool v) => _prefs.setBool('flipV', v);
   static Future<bool> getFlipVertical() async => (await _prefs.getBool('flipV')) ?? false;
   static Future<void> setRotation(int v) => _prefs.setInt('rotation', v);
-  static Future<int> getRotation() async => (await _prefs.getInt('rotation')) ?? 0;
+  static Future<int> getRotation() async => (await _prefs.getInt('rotation')) ?? 90;
   static Future<void> setInvert(bool v) => _prefs.setBool('invert', v);
   static Future<bool> getInvert() async => (await _prefs.getBool('invert')) ?? false;
   static Future<void> setThreshold(double v) => _prefs.setDouble('threshold', v);

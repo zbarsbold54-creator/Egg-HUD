@@ -5,6 +5,7 @@ library;
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class MusicScreen extends StatefulWidget {
   const MusicScreen({super.key});
@@ -18,6 +19,25 @@ class _MusicScreenState extends State<MusicScreen> {
   bool _playing = false;
   double _progress = 0;
   double _volume = 0.5;
+  static const _volChannel = MethodChannel('com.jarvis.brain_app/volume');
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVolume();
+  }
+
+  Future<void> _loadVolume() async {
+    try {
+      final v = await _volChannel.invokeMethod<double>('get');
+      if (mounted && v != null) setState(() => _volume = v);
+    } catch (_) {}
+  }
+
+  Future<void> _setVolume(double v) async {
+    setState(() => _volume = v);
+    try { await _volChannel.invokeMethod('set', {'value': v}); } catch (_) {}
+  }
   Timer? _timer;
   final List<double> _bars = List.generate(16, (_) => 0.2);
   final _rand = math.Random();
@@ -102,7 +122,7 @@ class _MusicScreenState extends State<MusicScreen> {
             Row(
               children: [
                 const Icon(Icons.volume_down),
-                Expanded(child: Slider(value: _volume, onChanged: (v) => setState(() => _volume = v))),
+                Expanded(child: Slider(value: _volume, onChanged: _setVolume)),
                 const Icon(Icons.volume_up),
               ],
             ),
