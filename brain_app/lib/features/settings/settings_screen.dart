@@ -137,6 +137,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _haTokenCtl.text = _haToken;
     _ipCtl.text = _hudIp;
     _proxyCtl.text = _proxyUrl;
+    if (!mounted) return;
     setState(() {});
   }
 
