@@ -2,6 +2,7 @@
 #include "Config.h"
 #include "DisplayDriver.h"
 #include "WSServer.h"
+#include "EspNowBridge.h"
 #include <WiFi.h>
 
 PowerManager Power;
@@ -33,7 +34,8 @@ void PowerManager::loop() {
   // Radio modem-sleep only while a client is connected. In modem-sleep the
   // Egg can miss mDNS queries and be slow/unreliable to accept a NEW
   // connection, which looks like "won't connect" when the glasses sit idle.
-  bool wantRadioSleep = _asleep && WsServer.clientConnected();
+  // ESP-NOW controller needs radio awake; only sleep when no controller.
+  bool wantRadioSleep = _asleep && WsServer.clientConnected() && !EspNowBridge::controllerConnected();
   if (wantRadioSleep && !_radioSleeping) {
     WiFi.setSleep(true);    // WebSocket connection is preserved
     _radioSleeping = true;
